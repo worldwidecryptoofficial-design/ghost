@@ -1,329 +1,177 @@
 #!/usr/bin/env python3
+"""Ghost: secure first-run provider setup and Termux assistant."""
+import json
 import os
-import sys
 import subprocess
+import sys
+from pathlib import Path
+
 import requests
 from rich.console import Console
-from rich.text import Text
-from rich.panel import Panel
 from rich.prompt import Prompt
 
 console = Console()
+CONFIG_DIR = Path(os.environ.get("GHOST_CONFIG_DIR", Path.home() / ".config" / "ghost"))
+CONFIG_FILE = CONFIG_DIR / "config.json"
 
 PROVIDERS = {
-    "1": {
-        "name": "Gemini",
-        "env": "GEMINI_API_KEY",
-        "url": "https://aistudio.google.com/apikey",
-        "model": "gemini-pro",
-        "endpoint": "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent"
-    },
-    "2": {
-        "name": "Groq",
-        "env": "GROQ_API_KEY",
-        "url": "https://console.groq.com/keys",
-        "model": "mixtral-8x7b-32768",
-        "endpoint": "https://api.groq.com/openai/v1/chat/completions"
-    },
-    "3": {
-        "name": "OpenRouter",
-        "env": "OPENROUTER_API_KEY",
-        "url": "https://openrouter.ai/settings/keys",
-        "model": "openai/gpt-4o-mini",
-        "endpoint": "https://openrouter.ai/api/v1/chat/completions"
-    },
-    "4": {
-        "name": "OpenAI",
-        "env": "OPENAI_API_KEY",
-        "url": "https://platform.openai.com/account/api-keys",
-        "model": "gpt-4o-mini",
-        "endpoint": "https://api.openai.com/v1/chat/completions"
-    },
-    "5": {
-        "name": "Anthropic",
-        "env": "ANTHROPIC_API_KEY",
-        "url": "https://console.anthropic.com/settings/keys",
-        "model": "claude-3-sonnet-20240229",
-        "endpoint": "https://api.anthropic.com/v1/messages"
-    }
+    "1": {"name": "Gemini", "env": "GEMINI_API_KEY", "url": "https://aistudio.google.com/apikey", "model": "gemini-2.0-flash", "kind": "gemini"},
+    "2": {"name": "Groq", "env": "GROQ_API_KEY", "url": "https://console.groq.com/keys", "model": "llama-3.3-70b-versatile", "kind": "openai"},
+    "3": {"name": "OpenRouter", "env": "OPENROUTER_API_KEY", "url": "https://openrouter.ai/settings/keys", "model": "openrouter/auto", "kind": "openai"},
+    "4": {"name": "OpenAI", "env": "OPENAI_API_KEY", "url": "https://platform.openai.com/api-keys", "model": "gpt-4o-mini", "kind": "openai"},
+    "5": {"name": "Anthropic", "env": "ANTHROPIC_API_KEY", "url": "https://console.anthropic.com/settings/keys", "model": "claude-3-5-sonnet-20241022", "kind": "anthropic"},
 }
 
-def print_banner():
-    banner = """
- ██████╗ ██████╗ ██████╗ ███████╗████████╗
- ██╔════╝ ██╔══██╗██╔════╝ ██╔════╝╚══██╔══╝
- ██║  ███╗██████╔╝██║  ███╗█████╗     ██║
- ██║   ██║██╔══██╗██║   ██║██╔══╝     ██║
- ╚██████╔╝██║  ██║╚██████╔╝███████╗   ██║
-  ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚══════╝   ╚═╝
-    """
-    console.print(Text(banner, style="bold magenta"))
-    console.print("[bold magenta]GHOST[/bold magenta]")
-    console.print("[bold cyan]AI-Powered Termux Assistant[/bold cyan]\n")
 
-def show_provider_selection():
-    """Show provider selection menu"""
-    os.system("clear")
-    print_banner()
-    
-    console.print("[bold cyan]No backend yet. Set one now (works with no opencode installed):[/bold cyan]")
-    console.print("[yellow]Set a provider\n[/yellow]")
-    
-    for key, provider in PROVIDERS.items():
-        console.print(f"  {key}. {provider['name']:20} - {provider['url']}")
-    
-    console.print()
-    return Prompt.ask("[bold yellow]Select [1-5][/bold yellow]", default="2")
+def banner():
+    console.print("[bold cyan]Ghost AI Assistant[/bold cyan]")
+    console.print("[dim]Real provider connection • secure local configuration[/dim]\n")
 
-def get_api_key_for_provider(choice):
-    """Get API key for selected provider"""
-    if choice not in PROVIDERS:
-        console.print("[bold red]Invalid choice.[/bold red]")
+
+def ensure_config_dir():
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    try:
+        os.chmod(CONFIG_DIR, 0o700)
+    except OSError:
+        pass
+
+
+def load_config():
+    if not CONFIG_FILE.exists():
         return None
-    
+    try:
+        with CONFIG_FILE.open() as f:
+            data = json.load(f)
+        if data.get("provider") in PROVIDERS and data.get("api_key"):
+            return data
+    except (OSError, ValueError):
+        console.print("[yellow]Saved configuration could not be read; setup will run again.[/yellow]")
+    return None
+
+
+def save_config(provider_id, api_key):
+    ensure_config_dir()
+    data = {"provider": provider_id, "api_key": api_key, "model": PROVIDERS[provider_id]["model"]}
+    with CONFIG_FILE.open("w") as f:
+        json.dump(data, f)
+    try:
+        os.chmod(CONFIG_FILE, 0o600)
+    except OSError:
+        pass
+
+
+def provider_menu():
+    console.print("[bold yellow]── Pick a provider ──[/bold yellow]")
+    for number, provider in PROVIDERS.items():
+        console.print(f"{number}. {provider['name']:<12} [dim]{provider['url']}[/dim]")
+    return Prompt.ask("[bold yellow]Select [1-5][/bold yellow]", choices=list(PROVIDERS), default="2")
+
+
+def setup(force=False):
+    current = load_config()
+    if current and not force:
+        provider = PROVIDERS[current["provider"]]
+        console.print(f"[green]Using saved provider: {provider['name']}[/green]")
+        return current
+
+    choice = provider_menu()
     provider = PROVIDERS[choice]
-    os.system("clear")
-    print_banner()
-    
-    console.print(f"[bold green]✓ Selected: {provider['name']}[/bold green]\n")
-    console.print(f"[cyan]Get your API key from: {provider['url']}[/cyan]\n")
-    
-    api_key = Prompt.ask(f"[bold yellow]{provider['name']} API KEY[/bold yellow]", password=False)
-    
-    if not api_key or api_key.strip() == "":
-        console.print("[bold red]No key provided.[/bold red]")
+    console.print(f"\n[green]Selected: {provider['name']}[/green]")
+    console.print(f"[dim]Get a key from: {provider['url']}[/dim]")
+    api_key = Prompt.ask(f"{provider['name']} API KEY", password=True).strip()
+    if not api_key:
+        console.print("[red]No API key entered.[/red]")
         return None
-    
-    # Set environment variable
-    os.environ[provider["env"]] = api_key.strip()
-    
-    # Ask to save to bashrc
-    save = Prompt.ask("[bold yellow]Save to ~/.bashrc? (y/n)[/bold yellow]", default="y")
-    if save.lower() == "y":
-        try:
-            bashrc_path = os.path.expanduser("~/.bashrc")
-            with open(bashrc_path, "a") as f:
-                f.write(f'\nexport {provider["env"]}="{api_key.strip()}"\n')
-            console.print(f"[bold green]✓ Saved {provider['name']} key to ~/.bashrc[/bold green]\n")
-        except Exception as e:
-            console.print(f"[bold red]Could not save to ~/.bashrc: {e}[/bold red]\n")
-    
-    return provider
 
-def ask_gemini(prompt, api_key):
-    """Ask Gemini API"""
+    save_config(choice, api_key)
+    console.print(f"[green]Saved securely to {CONFIG_FILE} (permissions 600).[/green]\n")
+    return {"provider": choice, "api_key": api_key, "model": provider["model"]}
+
+
+def request_ai(config, prompt):
+    provider = PROVIDERS[config["provider"]]
+    key = config["api_key"]
+    model = config["model"]
     try:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={api_key}"
-        r = requests.post(
-            url,
-            headers={"Content-Type": "application/json"},
-            json={
-                "contents": [{"parts": [{"text": prompt}]}],
-                "generationConfig": {"temperature": 0.7, "maxOutputTokens": 2048}
-            },
-            timeout=30
-        )
-        if r.status_code == 200:
-            return r.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+        if provider["kind"] == "gemini":
+            response = requests.post(
+                f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}",
+                json={"contents": [{"parts": [{"text": prompt}]}]}, timeout=60)
+            data = response.json()
+            if response.ok:
+                return data["candidates"][0]["content"]["parts"][0]["text"]
+        elif provider["kind"] == "anthropic":
+            response = requests.post(
+                "https://api.anthropic.com/v1/messages",
+                headers={"x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
+                json={"model": model, "max_tokens": 4096, "messages": [{"role": "user", "content": prompt}]}, timeout=60)
+            data = response.json()
+            if response.ok:
+                return data["content"][0]["text"]
         else:
-            return f"[bold red]Gemini API error: {r.status_code}[/bold red]"
-    except Exception as e:
-        return f"[bold red]Gemini request failed: {e}[/bold red]"
+            endpoint = {
+                "Groq": "https://api.groq.com/openai/v1/chat/completions",
+                "OpenRouter": "https://openrouter.ai/api/v1/chat/completions",
+                "OpenAI": "https://api.openai.com/v1/chat/completions",
+            }[provider["name"]]
+            headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
+            if provider["name"] == "OpenRouter":
+                headers.update({"HTTP-Referer": "https://github.com/worldwidecryptoofficial-design/ghost", "X-Title": "Ghost"})
+            response = requests.post(endpoint, headers=headers, json={
+                "model": model,
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": 0.7,
+            }, timeout=60)
+            data = response.json()
+            if response.ok:
+                return data["choices"][0]["message"]["content"]
 
-def ask_groq(prompt, api_key):
-    """Ask Groq API"""
+        detail = data.get("error", {}).get("message", "provider rejected the request")
+        return f"API error ({response.status_code}): {detail}"
+    except requests.RequestException as exc:
+        return f"Network error: {exc}"
+    except (KeyError, IndexError, TypeError, ValueError) as exc:
+        return f"Unexpected provider response: {exc}"
+
+
+def run_command(command):
+    console.print(f"[yellow]Command:[/yellow] {command}")
+    if Prompt.ask("Execute?", choices=["y", "n"], default="n") != "y":
+        return "Cancelled."
     try:
-        r = requests.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json"
-            },
-            json={
-                "model": "mixtral-8x7b-32768",
-                "messages": [
-                    {"role": "system", "content": "You are Ghost, a helpful Termux and Python assistant. Provide clear, practical answers."},
-                    {"role": "user", "content": prompt}
-                ],
-                "temperature": 0.7
-            },
-            timeout=30
-        )
-        if r.status_code == 200:
-            return r.json()["choices"][0]["message"]["content"].strip()
-        else:
-            return f"[bold red]Groq API error: {r.status_code}[/bold red]"
-    except Exception as e:
-        return f"[bold red]Groq request failed: {e}[/bold red]"
-
-def ask_openrouter(prompt, api_key):
-    """Ask OpenRouter API"""
-    try:
-        r = requests.post(
-            "https://openrouter.ai/api/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json"
-            },
-            json={
-                "model": "openai/gpt-4o-mini",
-                "messages": [
-                    {"role": "system", "content": "You are Ghost, a helpful Termux and Python assistant. Provide clear, practical answers."},
-                    {"role": "user", "content": prompt}
-                ],
-                "temperature": 0.7
-            },
-            timeout=30
-        )
-        if r.status_code == 200:
-            return r.json()["choices"][0]["message"]["content"].strip()
-        else:
-            return f"[bold red]OpenRouter API error: {r.status_code}[/bold red]"
-    except Exception as e:
-        return f"[bold red]OpenRouter request failed: {e}[/bold red]"
-
-def ask_openai(prompt, api_key):
-    """Ask OpenAI API"""
-    try:
-        r = requests.post(
-            "https://api.openai.com/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json"
-            },
-            json={
-                "model": "gpt-4o-mini",
-                "messages": [
-                    {"role": "system", "content": "You are Ghost, a helpful Termux and Python assistant. Provide clear, practical answers."},
-                    {"role": "user", "content": prompt}
-                ],
-                "temperature": 0.7
-            },
-            timeout=30
-        )
-        if r.status_code == 200:
-            return r.json()["choices"][0]["message"]["content"].strip()
-        else:
-            return f"[bold red]OpenAI API error: {r.status_code}[/bold red]"
-    except Exception as e:
-        return f"[bold red]OpenAI request failed: {e}[/bold red]"
-
-def ask_anthropic(prompt, api_key):
-    """Ask Anthropic API"""
-    try:
-        r = requests.post(
-            "https://api.anthropic.com/v1/messages",
-            headers={
-                "x-api-key": api_key,
-                "anthropic-version": "2023-06-01",
-                "Content-Type": "application/json"
-            },
-            json={
-                "model": "claude-3-sonnet-20240229",
-                "max_tokens": 2048,
-                "system": "You are Ghost, a helpful Termux and Python assistant. Provide clear, practical answers.",
-                "messages": [{"role": "user", "content": prompt}]
-            },
-            timeout=30
-        )
-        if r.status_code == 200:
-            return r.json()["content"][0]["text"].strip()
-        else:
-            return f"[bold red]Anthropic API error: {r.status_code}[/bold red]"
-    except Exception as e:
-        return f"[bold red]Anthropic request failed: {e}[/bold red]"
-
-def ask_ai(prompt, provider_choice):
-    """Ask selected AI provider"""
-    if provider_choice == "1":
-        api_key = os.getenv("GEMINI_API_KEY")
-        if api_key:
-            return ask_gemini(prompt, api_key)
-    elif provider_choice == "2":
-        api_key = os.getenv("GROQ_API_KEY")
-        if api_key:
-            return ask_groq(prompt, api_key)
-    elif provider_choice == "3":
-        api_key = os.getenv("OPENROUTER_API_KEY")
-        if api_key:
-            return ask_openrouter(prompt, api_key)
-    elif provider_choice == "4":
-        api_key = os.getenv("OPENAI_API_KEY")
-        if api_key:
-            return ask_openai(prompt, api_key)
-    elif provider_choice == "5":
-        api_key = os.getenv("ANTHROPIC_API_KEY")
-        if api_key:
-            return ask_anthropic(prompt, api_key)
-    
-    return "[bold red]No API key configured for this provider.[/bold red]"
-
-def run_command(cmd):
-    """Execute shell commands"""
-    try:
-        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
-        return result.stdout + result.stderr
+        result = subprocess.run(command, shell=True, text=True, capture_output=True, timeout=60)
+        return (result.stdout + result.stderr).strip() or f"Exit code: {result.returncode}"
     except subprocess.TimeoutExpired:
-        return "[bold red]Command timed out[/bold red]"
-    except Exception as e:
-        return f"[bold red]Error: {e}[/bold red]"
+        return "Command timed out."
+
 
 def main():
-    # Check if API key is already set
-    provider_choice = None
-    for choice, provider in PROVIDERS.items():
-        if os.getenv(provider["env"]):
-            provider_choice = choice
-            break
-    
-    # If no key is set, show selection menu
-    if not provider_choice:
-        provider_choice = show_provider_selection()
-        provider = get_api_key_for_provider(provider_choice)
-        if not provider:
-            sys.exit(1)
-    
-    # Main loop
-    os.system("clear")
-    print_banner()
-    
-    console.print("[bold cyan]Commands:[/bold cyan]")
-    console.print("  Ask any question")
-    console.print("  'run <command>' - execute shell commands")
-    console.print("  'setup' - change AI provider")
-    console.print("  'exit' - quit\n")
-    
+    banner()
+    config = load_config() or setup()
+    if not config:
+        sys.exit(1)
+
+    console.print("[cyan]Commands:[/cyan] setup/change provider, run <command>, /status, exit\n")
     while True:
         try:
-            user = console.input("[bold blue]You:[/bold blue] ").strip()
-        except KeyboardInterrupt:
-            console.print("\n[bold yellow]Ghost: session closed.[/bold yellow]")
+            text = console.input("[bold blue]You:[/bold blue] ").strip()
+        except (KeyboardInterrupt, EOFError):
             break
-        
-        if not user:
-            continue
-        
-        if user.lower() in ["exit", "quit", "bye"]:
-            console.print("[bold yellow]Ghost: goodbye.[/bold yellow]")
+        if text.lower() in {"exit", "quit", "bye"}:
             break
-        
-        if user.lower() == "setup":
-            provider_choice = show_provider_selection()
-            provider = get_api_key_for_provider(provider_choice)
-            if provider:
-                console.print(f"[bold green]✓ Provider changed to {provider['name']}[/bold green]")
+        if text.lower() in {"setup", "/config"}:
+            config = setup(force=True) or config
             continue
-        
-        if user.lower().startswith("run "):
-            cmd = user[4:].strip()
-            console.print(f"[bold yellow]Executing:[/bold yellow] {cmd}")
-            result = run_command(cmd)
-            console.print(f"[bold green]Output:[/bold green]\n{result}\n")
+        if text.lower() == "/status":
+            console.print(f"Provider: [green]{PROVIDERS[config['provider']]['name']}[/green]")
+            console.print(f"Config: {CONFIG_FILE}")
             continue
-        
-        # Ask AI
-        reply = ask_ai(user, provider_choice)
-        console.print(f"[bold green]Ghost:[/bold green] {reply}\n")
+        if text.lower().startswith("run "):
+            console.print(run_command(text[4:].strip()))
+            continue
+        if text:
+            console.print("[bold green]Ghost:[/bold green] " + request_ai(config, text))
+
 
 if __name__ == "__main__":
     main()
