@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Ghost: secure first-run provider setup and Termux assistant."""
+"""Ghost: secure first-run provider setup and Termux assistant with hacking tools installer."""
 import json
 import os
 import subprocess
@@ -22,10 +22,36 @@ PROVIDERS = {
     "5": {"name": "Anthropic", "env": "ANTHROPIC_API_KEY", "url": "https://console.anthropic.com/settings/keys", "model": "claude-3-5-sonnet-20241022", "kind": "anthropic"},
 }
 
+SECURITY_TOOLS = {
+    "nmap": {"name": "Nmap", "cmd": "pkg install -y nmap"},
+    "amass": {"name": "Amass", "cmd": "pkg install -y amass"},
+    "masscan": {"name": "Masscan", "cmd": "pkg install -y masscan"},
+    "sqlmap": {"name": "SQLmap", "cmd": "pip install sqlmap"},
+    "metasploit": {"name": "Metasploit Framework", "cmd": "pkg install -y metasploit"},
+    "impacket": {"name": "Impacket", "cmd": "pip install impacket"},
+    "netexec": {"name": "NetExec", "cmd": "pip install netexec"},
+    "evil-winrm": {"name": "Evil-WinRM", "cmd": "gem install evil-winrm"},
+    "linpeas": {"name": "LinPEAS", "cmd": "wget https://github.com/carlospolop/PEASS-ng/releases/latest/download/linpeas.sh -O $PREFIX/bin/linpeas.sh && chmod +x $PREFIX/bin/linpeas.sh"},
+    "winpeas": {"name": "WinPEAS", "cmd": "wget https://github.com/carlospolop/PEASS-ng/releases/latest/download/winPEAS.exe -O $HOME/winpeas.exe"},
+    "hashcat": {"name": "Hashcat", "cmd": "pkg install -y hashcat"},
+    "john": {"name": "John the Ripper", "cmd": "pkg install -y john"},
+    "aircrack": {"name": "Aircrack-ng", "cmd": "pkg install -y aircrack-ng"},
+    "hydra": {"name": "Hydra", "cmd": "pkg install -y hydra"},
+    "wireshark": {"name": "Wireshark", "cmd": "pkg install -y wireshark"},
+    "tcpdump": {"name": "Tcpdump", "cmd": "pkg install -y tcpdump"},
+    "gobuster": {"name": "Gobuster", "cmd": "pkg install -y gobuster"},
+    "feroxbuster": {"name": "Feroxbuster", "cmd": "pkg install -y feroxbuster"},
+    "zaproxy": {"name": "OWASP ZAP", "cmd": "pkg install -y zaproxy"},
+    "bloodhound": {"name": "BloodHound", "cmd": "pip install bloodhound"},
+    "sharphound": {"name": "SharpHound", "cmd": "wget https://github.com/BloodHoundAD/SharpHound/releases/latest/download/SharpHound.exe -O $HOME/SharpHound.exe"},
+    "mimikatz": {"name": "Mimikatz", "cmd": "wget https://github.com/gentilkiwi/mimikatz/releases/latest/download/mimikatz_trunk.zip -O $HOME/mimikatz.zip && cd $HOME && unzip -o mimikatz.zip"},
+}
+
 
 def banner():
     console.print("[bold cyan]Ghost AI Assistant[/bold cyan]")
-    console.print("[dim]Real provider connection • secure local configuration[/dim]\n")
+    console.print("[dim]Real provider connection • secure local configuration[/dim]")
+    console.print("[bold green]With Integrated Security Tools[/bold green]\n")
 
 
 def ensure_config_dir():
@@ -143,6 +169,48 @@ def run_command(command):
         return (result.stdout + result.stderr).strip() or f"Exit code: {result.returncode}"
     except subprocess.TimeoutExpired:
         return "Command timed out."
+    except Exception as exc:
+        return f"Error: {exc}"
+
+
+def show_tools():
+    console.print("[bold yellow]── Available Security Tools ──[/bold yellow]")
+    for i, (key, tool) in enumerate(SECURITY_TOOLS.items(), 1):
+        console.print(f"{i}. {tool['name']}")
+    console.print(f"{len(SECURITY_TOOLS) + 1}. Install ALL tools")
+    console.print(f"{len(SECURITY_TOOLS) + 2}. Back to main menu")
+
+
+def install_tool(key):
+    tool = SECURITY_TOOLS.get(key)
+    if not tool:
+        console.print("[red]Invalid tool.[/red]")
+        return
+    console.print(f"[bold yellow]Installing {tool['name']}...[/bold yellow]")
+    result = run_command(tool["cmd"])
+    console.print(f"[green]{result}[/green]")
+
+
+def install_all_tools():
+    console.print("[bold yellow]Installing all security tools...[/bold yellow]")
+    console.print("[dim]This may take a while. Progress:[/dim]\n")
+    for i, (key, tool) in enumerate(SECURITY_TOOLS.items(), 1):
+        console.print(f"[{i}/{len(SECURITY_TOOLS)}] Installing {tool['name']}...")
+        result = subprocess.run(tool["cmd"], shell=True, capture_output=True, text=True, timeout=300)
+        if result.returncode == 0:
+            console.print(f"  [green]✓ {tool['name']} installed[/green]")
+        else:
+            console.print(f"  [yellow]⚠ {tool['name']} install had issues[/yellow]")
+    console.print("\n[green]All tools installation completed![/green]")
+
+
+def show_installed_tools():
+    console.print("[bold yellow]Checking installed tools...[/bold yellow]\n")
+    for key, tool in SECURITY_TOOLS.items():
+        result = subprocess.run(f"which {key.replace('-', '_')} || command -v {key} || pip show {key.replace('-', '_')} >/dev/null 2>&1", 
+                               shell=True, capture_output=True)
+        status = "[green]✓ Installed[/green]" if result.returncode == 0 else "[red]✗ Not installed[/red]"
+        console.print(f"  {tool['name']:<30} {status}")
 
 
 def main():
@@ -151,24 +219,50 @@ def main():
     if not config:
         sys.exit(1)
 
-    console.print("[cyan]Commands:[/cyan] setup/change provider, run <command>, /status, exit\n")
+    console.print("[cyan]Commands:[/cyan] /tools, /install, /status, setup, run <command>, exit\n")
     while True:
         try:
             text = console.input("[bold blue]You:[/bold blue] ").strip()
         except (KeyboardInterrupt, EOFError):
             break
+        
         if text.lower() in {"exit", "quit", "bye"}:
             break
+        
         if text.lower() in {"setup", "/config"}:
             config = setup(force=True) or config
             continue
+        
         if text.lower() == "/status":
             console.print(f"Provider: [green]{PROVIDERS[config['provider']]['name']}[/green]")
-            console.print(f"Config: {CONFIG_FILE}")
+            console.print(f"Config: {CONFIG_FILE}\n")
             continue
+        
+        if text.lower() == "/tools":
+            show_tools()
+            choice = Prompt.ask("Select tool to install (number)").strip()
+            if choice.isdigit():
+                num = int(choice)
+                if num == len(SECURITY_TOOLS) + 1:
+                    install_all_tools()
+                elif num <= len(SECURITY_TOOLS):
+                    key = list(SECURITY_TOOLS.keys())[num - 1]
+                    install_tool(key)
+            continue
+        
+        if text.lower() == "/install":
+            if Prompt.ask("Install all security tools?", choices=["y", "n"], default="n") == "y":
+                install_all_tools()
+            continue
+        
+        if text.lower() == "/check":
+            show_installed_tools()
+            continue
+        
         if text.lower().startswith("run "):
             console.print(run_command(text[4:].strip()))
             continue
+        
         if text:
             console.print("[bold green]Ghost:[/bold green] " + request_ai(config, text))
 
