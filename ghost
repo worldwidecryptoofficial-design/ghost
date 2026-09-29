@@ -3,7 +3,6 @@ import os
 import sys
 import subprocess
 import requests
-import tempfile
 from rich.console import Console
 from rich.text import Text
 from rich.panel import Panel
@@ -11,271 +10,320 @@ from rich.prompt import Prompt
 
 console = Console()
 
-class GhostSetup:
-    """Interactive Ghost AI setup"""
-    
-    PROVIDERS = {
-        "0": {
-            "name": "Gemini (Google)",
-            "free": "free tier",
-            "url": "https://aistudio.google.com/apikey",
-            "env": "GEMINI_API_KEY"
-        },
-        "1": {
-            "name": "Groq",
-            "free": "free tier - key from console.groq.com/keys",
-            "url": "https://console.groq.com/keys",
-            "env": "GROQ_API_KEY"
-        },
-        "2": {
-            "name": "OpenRouter",
-            "free": "free models - key from openrouter.ai/settings/keys",
-            "url": "https://openrouter.ai/settings/keys",
-            "env": "OPENROUTER_API_KEY"
-        },
-        "3": {
-            "name": "OpenAI",
-            "free": "paid - key from platform.openai.com/api-keys",
-            "url": "https://platform.openai.com/account/api-keys",
-            "env": "OPENAI_API_KEY"
-        },
-        "4": {
-            "name": "Anthropic (Claude)",
-            "free": "paid - key from console.anthropic.com/settings/keys",
-            "url": "https://console.anthropic.com/settings/keys",
-            "env": "ANTHROPIC_API_KEY"
-        },
-        "5": {
-            "name": "Deepseek",
-            "free": "cheap - key from platform.deepseek.com/api-keys",
-            "url": "https://platform.deepseek.com/api_keys",
-            "env": "DEEPSEEK_API_KEY"
-        },
-        "6": {
-            "name": "Cohere",
-            "free": "free tier - key from dashboard.cohere.ai/api-keys",
-            "url": "https://dashboard.cohere.ai/api-keys",
-            "env": "COHERE_API_KEY"
-        },
-        "7": {
-            "name": "Together (Local)",
-            "free": "free models - key from api.together.xyz",
-            "url": "https://api.together.xyz/settings/api-keys",
-            "env": "TOGETHER_API_KEY"
-        },
-        "8": {
-            "name": "Custom (any OpenAI-compatible URL)",
-            "free": "your own server",
-            "url": "custom endpoint",
-            "env": "CUSTOM_API_URL"
-        }
+PROVIDERS = {
+    "1": {
+        "name": "Gemini",
+        "env": "GEMINI_API_KEY",
+        "url": "https://aistudio.google.com/apikey",
+        "model": "gemini-pro",
+        "endpoint": "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent"
+    },
+    "2": {
+        "name": "Groq",
+        "env": "GROQ_API_KEY",
+        "url": "https://console.groq.com/keys",
+        "model": "mixtral-8x7b-32768",
+        "endpoint": "https://api.groq.com/openai/v1/chat/completions"
+    },
+    "3": {
+        "name": "OpenRouter",
+        "env": "OPENROUTER_API_KEY",
+        "url": "https://openrouter.ai/settings/keys",
+        "model": "openai/gpt-4o-mini",
+        "endpoint": "https://openrouter.ai/api/v1/chat/completions"
+    },
+    "4": {
+        "name": "OpenAI",
+        "env": "OPENAI_API_KEY",
+        "url": "https://platform.openai.com/account/api-keys",
+        "model": "gpt-4o-mini",
+        "endpoint": "https://api.openai.com/v1/chat/completions"
+    },
+    "5": {
+        "name": "Anthropic",
+        "env": "ANTHROPIC_API_KEY",
+        "url": "https://console.anthropic.com/settings/keys",
+        "model": "claude-3-sonnet-20240229",
+        "endpoint": "https://api.anthropic.com/v1/messages"
     }
+}
 
-    def show_setup(self):
-        """Show provider selection"""
-        os.system("clear")
-        
-        banner = """
-        ██████╗ ██████╗ ██████╗ ███████╗████████╗
-        ██╔════╝ ██╔══██╗██╔════╝ ██╔════╝╚══██╔══╝
-        ██║  ███╗██████╔╝██║  ███╗█████╗     ██║   
-        ██║   ██║██╔══██╗██║   ██║██╔══╝     ██║   
-        ╚██████╔╝██║  ██║╚██████╔╝███████╗   ██║   
-         ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚══���═══╝   ╚═╝   
-        """
-        console.print(Text(banner, style="bold cyan"))
-        console.print("[bold cyan]GHOST AGENT v5.1 - TEAM PROTOCOL (PURE BASH)[/bold cyan]")
-        console.print("[cyan]opencode-style agents • Termux | Dev: Frost-bit-star[/cyan]\n")
-        
-        console.print("[bold cyan]AGENTS[/bold cyan]")
-        console.print("[green]PRIMARY[/green] (Switch with TAB)")
-        console.print("  [cyan]build[/cyan] - full access - install/config/run")
-        console.print("  [cyan]create[/cyan] - code generation, python, plan, exec")
-        console.print("[green]SUBAGETS[/green] (Invoke with $name)")
-        console.print("  [cyan]general[/cyan] - multi-step tasks")
-        console.print("  [cyan]explore[/cyan] - read-only recon / exploration")
-        console.print("  [cyan]scout[/cyan] - research CVEs / docs / exploit-db")
-        console.print("  [cyan]hidden[/cyan] (auto) title + summary completion")
-        console.print("  [cyan]team[/cyan] - handoff / auto-failover\n")
-        
-        console.print("[bold yellow][!] No backend yet. Set one now (works with no openccode installed):[/bold yellow]")
-        console.print("[yellow]Set a provider[/yellow]\n")
-        
-        for key, provider in self.PROVIDERS.items():
-            console.print(f"  {key}. {provider['name']:30} {provider['free']}")
-        
-        console.print()
+def print_banner():
+    banner = """
+ ██████╗ ██████╗ ██████╗ ███████╗████████╗
+ ██╔════╝ ██╔══██╗██╔════╝ ██╔════╝╚══██╔══╝
+ ██║  ███╗██████╔╝██║  ███╗█████╗     ██║
+ ██║   ██║██╔══██╗██║   ██║██╔══╝     ██║
+ ╚██████╔╝██║  ██║╚██████╔╝███████╗   ██║
+  ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚══════╝   ╚═╝
+    """
+    console.print(Text(banner, style="bold magenta"))
+    console.print("[bold magenta]GHOST[/bold magenta]")
+    console.print("[bold cyan]AI-Powered Termux Assistant[/bold cyan]\n")
 
-    def setup_provider(self):
-        """Get provider choice from user"""
-        self.show_setup()
-        
-        choice = Prompt.ask("Select [0-8]", default="1")
-        
-        if choice not in self.PROVIDERS:
-            console.print("[bold red]Invalid choice[/bold red]")
-            return None
-        
-        provider = self.PROVIDERS[choice]
-        console.print(f"\n[bold green]✓ Selected: {provider['name']}[/bold green]")
-        console.print(f"[cyan]Get key: {provider['url']}[/cyan]\n")
-        
-        api_key = Prompt.ask("Enter your API key (or 'skip' to continue without)")
-        
-        if api_key.lower() == 'skip':
-            return None
-        
-        # Set the environment variable
-        os.environ[provider['env']] = api_key
-        
-        # Optionally save to .bashrc
-        save = Prompt.ask("Save key to ~/.bashrc? (y/n)", default="n")
-        if save.lower() == 'y':
-            try:
-                with open(os.path.expanduser("~/.bashrc"), "a") as f:
-                    f.write(f'\nexport {provider["env"]}="{api_key}"\n')
-                console.print("[bold green]✓ Saved to ~/.bashrc[/bold green]")
-            except:
-                pass
-        
-        return provider
+def show_provider_selection():
+    """Show provider selection menu"""
+    os.system("clear")
+    print_banner()
+    
+    console.print("[bold cyan]No backend yet. Set one now (works with no opencode installed):[/bold cyan]")
+    console.print("[yellow]Set a provider\n[/yellow]")
+    
+    for key, provider in PROVIDERS.items():
+        console.print(f"  {key}. {provider['name']:20} - {provider['url']}")
+    
+    console.print()
+    return Prompt.ask("[bold yellow]Select [1-5][/bold yellow]", default="2")
 
-def ask_openai(prompt):
-    """Use OpenAI API"""
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
+def get_api_key_for_provider(choice):
+    """Get API key for selected provider"""
+    if choice not in PROVIDERS:
+        console.print("[bold red]Invalid choice.[/bold red]")
         return None
-    try:
-        r = requests.post(
-            "https://api.openai.com/v1/chat/completions",
-            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            json={
-                "model": "gpt-4o-mini",
-                "messages": [{"role": "system", "content": "You are Ghost, a powerful Termux/Python AI assistant."}, {"role": "user", "content": prompt}],
-                "temperature": 0.8,
-            },
-            timeout=30,
-        )
-        if r.status_code == 200:
-            return r.json()["choices"][0]["message"]["content"].strip()
-    except:
-        pass
-    return None
-
-def ask_groq(prompt):
-    """Use Groq API"""
-    api_key = os.getenv("GROQ_API_KEY")
-    if not api_key:
+    
+    provider = PROVIDERS[choice]
+    os.system("clear")
+    print_banner()
+    
+    console.print(f"[bold green]✓ Selected: {provider['name']}[/bold green]\n")
+    console.print(f"[cyan]Get your API key from: {provider['url']}[/cyan]\n")
+    
+    api_key = Prompt.ask(f"[bold yellow]{provider['name']} API KEY[/bold yellow]", password=False)
+    
+    if not api_key or api_key.strip() == "":
+        console.print("[bold red]No key provided.[/bold red]")
         return None
-    try:
-        r = requests.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            json={
-                "model": "mixtral-8x7b-32768",
-                "messages": [{"role": "system", "content": "You are Ghost, a powerful Termux/Python AI assistant."}, {"role": "user", "content": prompt}],
-                "temperature": 0.8,
-            },
-            timeout=30,
-        )
-        if r.status_code == 200:
-            return r.json()["choices"][0]["message"]["content"].strip()
-    except:
-        pass
-    return None
+    
+    # Set environment variable
+    os.environ[provider["env"]] = api_key.strip()
+    
+    # Ask to save to bashrc
+    save = Prompt.ask("[bold yellow]Save to ~/.bashrc? (y/n)[/bold yellow]", default="y")
+    if save.lower() == "y":
+        try:
+            bashrc_path = os.path.expanduser("~/.bashrc")
+            with open(bashrc_path, "a") as f:
+                f.write(f'\nexport {provider["env"]}="{api_key.strip()}"\n')
+            console.print(f"[bold green]✓ Saved {provider['name']} key to ~/.bashrc[/bold green]\n")
+        except Exception as e:
+            console.print(f"[bold red]Could not save to ~/.bashrc: {e}[/bold red]\n")
+    
+    return provider
 
-def ask_gemini(prompt):
-    """Use Google Gemini API"""
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        return None
+def ask_gemini(prompt, api_key):
+    """Ask Gemini API"""
     try:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={api_key}"
         r = requests.post(
-            f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={api_key}",
+            url,
             headers={"Content-Type": "application/json"},
             json={
                 "contents": [{"parts": [{"text": prompt}]}],
-                "generationConfig": {"temperature": 0.8, "maxOutputTokens": 2048},
+                "generationConfig": {"temperature": 0.7, "maxOutputTokens": 2048}
             },
-            timeout=30,
+            timeout=30
         )
         if r.status_code == 200:
             return r.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
-    except:
-        pass
-    return None
+        else:
+            return f"[bold red]Gemini API error: {r.status_code}[/bold red]"
+    except Exception as e:
+        return f"[bold red]Gemini request failed: {e}[/bold red]"
 
-def ask_ai(prompt):
-    """Try multiple AI providers"""
-    providers = [
-        ("OpenAI", ask_openai),
-        ("Groq", ask_groq),
-        ("Gemini", ask_gemini),
-    ]
+def ask_groq(prompt, api_key):
+    """Ask Groq API"""
+    try:
+        r = requests.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": "mixtral-8x7b-32768",
+                "messages": [
+                    {"role": "system", "content": "You are Ghost, a helpful Termux and Python assistant. Provide clear, practical answers."},
+                    {"role": "user", "content": prompt}
+                ],
+                "temperature": 0.7
+            },
+            timeout=30
+        )
+        if r.status_code == 200:
+            return r.json()["choices"][0]["message"]["content"].strip()
+        else:
+            return f"[bold red]Groq API error: {r.status_code}[/bold red]"
+    except Exception as e:
+        return f"[bold red]Groq request failed: {e}[/bold red]"
+
+def ask_openrouter(prompt, api_key):
+    """Ask OpenRouter API"""
+    try:
+        r = requests.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": "openai/gpt-4o-mini",
+                "messages": [
+                    {"role": "system", "content": "You are Ghost, a helpful Termux and Python assistant. Provide clear, practical answers."},
+                    {"role": "user", "content": prompt}
+                ],
+                "temperature": 0.7
+            },
+            timeout=30
+        )
+        if r.status_code == 200:
+            return r.json()["choices"][0]["message"]["content"].strip()
+        else:
+            return f"[bold red]OpenRouter API error: {r.status_code}[/bold red]"
+    except Exception as e:
+        return f"[bold red]OpenRouter request failed: {e}[/bold red]"
+
+def ask_openai(prompt, api_key):
+    """Ask OpenAI API"""
+    try:
+        r = requests.post(
+            "https://api.openai.com/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": "gpt-4o-mini",
+                "messages": [
+                    {"role": "system", "content": "You are Ghost, a helpful Termux and Python assistant. Provide clear, practical answers."},
+                    {"role": "user", "content": prompt}
+                ],
+                "temperature": 0.7
+            },
+            timeout=30
+        )
+        if r.status_code == 200:
+            return r.json()["choices"][0]["message"]["content"].strip()
+        else:
+            return f"[bold red]OpenAI API error: {r.status_code}[/bold red]"
+    except Exception as e:
+        return f"[bold red]OpenAI request failed: {e}[/bold red]"
+
+def ask_anthropic(prompt, api_key):
+    """Ask Anthropic API"""
+    try:
+        r = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={
+                "x-api-key": api_key,
+                "anthropic-version": "2023-06-01",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": "claude-3-sonnet-20240229",
+                "max_tokens": 2048,
+                "system": "You are Ghost, a helpful Termux and Python assistant. Provide clear, practical answers.",
+                "messages": [{"role": "user", "content": prompt}]
+            },
+            timeout=30
+        )
+        if r.status_code == 200:
+            return r.json()["content"][0]["text"].strip()
+        else:
+            return f"[bold red]Anthropic API error: {r.status_code}[/bold red]"
+    except Exception as e:
+        return f"[bold red]Anthropic request failed: {e}[/bold red]"
+
+def ask_ai(prompt, provider_choice):
+    """Ask selected AI provider"""
+    if provider_choice == "1":
+        api_key = os.getenv("GEMINI_API_KEY")
+        if api_key:
+            return ask_gemini(prompt, api_key)
+    elif provider_choice == "2":
+        api_key = os.getenv("GROQ_API_KEY")
+        if api_key:
+            return ask_groq(prompt, api_key)
+    elif provider_choice == "3":
+        api_key = os.getenv("OPENROUTER_API_KEY")
+        if api_key:
+            return ask_openrouter(prompt, api_key)
+    elif provider_choice == "4":
+        api_key = os.getenv("OPENAI_API_KEY")
+        if api_key:
+            return ask_openai(prompt, api_key)
+    elif provider_choice == "5":
+        api_key = os.getenv("ANTHROPIC_API_KEY")
+        if api_key:
+            return ask_anthropic(prompt, api_key)
     
-    for name, func in providers:
-        result = func(prompt)
-        if result:
-            return result
-    return None
+    return "[bold red]No API key configured for this provider.[/bold red]"
+
+def run_command(cmd):
+    """Execute shell commands"""
+    try:
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
+        return result.stdout + result.stderr
+    except subprocess.TimeoutExpired:
+        return "[bold red]Command timed out[/bold red]"
+    except Exception as e:
+        return f"[bold red]Error: {e}[/bold red]"
 
 def main():
     # Check if API key is already set
-    if not any(os.getenv(key) for key in ["OPENAI_API_KEY", "GROQ_API_KEY", "GEMINI_API_KEY", "ANTHROPIC_API_KEY"]):
-        setup = GhostSetup()
-        setup.setup_provider()
+    provider_choice = None
+    for choice, provider in PROVIDERS.items():
+        if os.getenv(provider["env"]):
+            provider_choice = choice
+            break
     
+    # If no key is set, show selection menu
+    if not provider_choice:
+        provider_choice = show_provider_selection()
+        provider = get_api_key_for_provider(provider_choice)
+        if not provider:
+            sys.exit(1)
+    
+    # Main loop
     os.system("clear")
-    
-    banner = """
-    ██████╗ ██████╗ ██████╗ ███████╗████████╗
-    ██╔════╝ ██╔══██╗██╔════╝ ██╔════╝╚══██╔══╝
-    ██║  ███╗██████╔╝██║  ███╗█████╗     ██║   
-    ██║   ██║██╔══██╗██║   ██║██╔══╝     ██║   
-    ╚██████╔╝██║  ██║╚██████╔╝███████╗   ██║   
-     ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚══════╝   ╚═╝   
-    """
-    console.print(Text(banner, style="bold magenta"))
-    console.print("[bold magenta]Ghost Termux Assistant[/bold magenta]\n")
+    print_banner()
     
     console.print("[bold cyan]Commands:[/bold cyan]")
-    console.print("  Ask Ghost to create Python scripts or tools")
+    console.print("  Ask any question")
     console.print("  'run <command>' - execute shell commands")
     console.print("  'setup' - change AI provider")
     console.print("  'exit' - quit\n")
-
+    
     while True:
         try:
-            user = console.input("[bold blue]You:[/bold blue] ")
+            user = console.input("[bold blue]You:[/bold blue] ").strip()
         except KeyboardInterrupt:
             console.print("\n[bold yellow]Ghost: session closed.[/bold yellow]")
             break
-
-        if user.strip().lower() in ["exit", "quit", "bye"]:
+        
+        if not user:
+            continue
+        
+        if user.lower() in ["exit", "quit", "bye"]:
             console.print("[bold yellow]Ghost: goodbye.[/bold yellow]")
             break
         
-        if user.strip().lower() == "setup":
-            setup = GhostSetup()
-            setup.setup_provider()
+        if user.lower() == "setup":
+            provider_choice = show_provider_selection()
+            provider = get_api_key_for_provider(provider_choice)
+            if provider:
+                console.print(f"[bold green]✓ Provider changed to {provider['name']}[/bold green]")
             continue
-
-        if user.strip().lower().startswith("run "):
+        
+        if user.lower().startswith("run "):
             cmd = user[4:].strip()
             console.print(f"[bold yellow]Executing:[/bold yellow] {cmd}")
-            try:
-                result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
-                console.print(f"[bold green]Output:[/bold green]\n{result.stdout + result.stderr}")
-            except Exception as e:
-                console.print(f"[bold red]Error:[/bold red] {e}")
-        else:
-            reply = ask_ai(user)
-            if reply:
-                console.print("[bold green]Ghost:[/bold green] " + reply)
-            else:
-                console.print("[bold red]No API key configured. Type 'setup' to configure.[/bold red]")
+            result = run_command(cmd)
+            console.print(f"[bold green]Output:[/bold green]\n{result}\n")
+            continue
         
-        print()
+        # Ask AI
+        reply = ask_ai(user, provider_choice)
+        console.print(f"[bold green]Ghost:[/bold green] {reply}\n")
 
 if __name__ == "__main__":
     main()
