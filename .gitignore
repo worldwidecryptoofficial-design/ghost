@@ -216,3 +216,24 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Ghost local backups
+/ghost.backup*
+/nethunter_bridge.py.backup*
+/nethunter_bridge.py.before_*
+/ghost.before_*
+
+# Ghost generated/local security data
+/security_core/audit/records/*
+/security_core/logs/*
+/security_core/offensive/producer_password.json
+
+# Local security/runtime state
+/security_core/safety/lockdown_state.json
+
+# Local Python caches
+**/__pycache__/
+*.pyc
+
+# Local test artifacts
+/tmp/

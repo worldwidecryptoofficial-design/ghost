@@ -32,6 +32,7 @@ PROVIDERS = {
 }
 
 SECURITY_TOOLS = {
+    # Core security assessment tools
     "nmap": {"name": "Nmap", "package": "nmap", "exes": ["nmap"]},
     "masscan": {"name": "Masscan", "package": "masscan", "exes": ["masscan"]},
     "sqlmap": {"name": "SQLmap", "package": "sqlmap", "exes": ["sqlmap"]},
@@ -48,6 +49,35 @@ SECURITY_TOOLS = {
         "package": "john",
         "exes": ["john", "john-the-ripper"]
     },
+    "metasploit": {
+        "name": "Metasploit Framework",
+        "package": "metasploit-framework",
+        "exes": ["msfconsole", "msfvenom"]
+    },
+
+    # Network / system diagnostics
+    "ss": {"name": "ss", "package": "iproute2", "exes": ["ss"]},
+    "ip": {"name": "IProute2", "package": "iproute2", "exes": ["ip"]},
+    "ping": {"name": "Ping", "package": "iputils-ping", "exes": ["ping"]},
+    "traceroute": {"name": "Traceroute", "package": "traceroute", "exes": ["traceroute"]},
+    "dig": {"name": "Dig", "package": "bind9-dnsutils", "exes": ["dig"]},
+    "nslookup": {"name": "Nslookup", "package": "bind9-dnsutils", "exes": ["nslookup"]},
+    "whois": {"name": "Whois", "package": "whois", "exes": ["whois"]},
+    "openssl": {"name": "OpenSSL", "package": "openssl", "exes": ["openssl"]},
+    "socat": {"name": "Socat", "package": "socat", "exes": ["socat"]},
+    "netcat": {"name": "Netcat", "package": "netcat-openbsd", "exes": ["nc"]},
+    "tshark": {"name": "TShark", "package": "tshark", "exes": ["tshark"]},
+
+    # Web security assessment
+    "nikto": {"name": "Nikto", "package": "nikto", "exes": ["nikto"]},
+    "gobuster": {"name": "Gobuster", "package": "gobuster", "exes": ["gobuster"]},
+    "ffuf": {"name": "FFUF", "package": "ffuf", "exes": ["ffuf"]},
+    "feroxbuster": {"name": "Feroxbuster", "package": "feroxbuster", "exes": ["feroxbuster"]},
+    "whatweb": {"name": "WhatWeb", "package": "whatweb", "exes": ["whatweb"]},
+    "amass": {"name": "OWASP Amass", "package": "amass", "exes": ["amass"]},
+    "dnsrecon": {"name": "DNSRecon", "package": "dnsrecon", "exes": ["dnsrecon"]},
+
+    # General development / transfer utilities
     "curl": {"name": "Curl", "package": "curl", "exes": ["curl"]},
     "wget": {"name": "Wget", "package": "wget", "exes": ["wget"]},
     "git": {"name": "Git", "package": "git", "exes": ["git"]},
@@ -55,11 +85,6 @@ SECURITY_TOOLS = {
     "ruby": {"name": "Ruby", "package": "ruby", "exes": ["ruby"]},
     "golang": {"name": "Golang", "package": "golang", "exes": ["go"]},
     "unzip": {"name": "Unzip", "package": "unzip", "exes": ["unzip"]},
-    "metasploit": {
-        "name": "Metasploit Framework",
-        "package": "metasploit-framework",
-        "exes": ["msfconsole", "msfvenom"]
-    },
 }
 
 
@@ -70,26 +95,55 @@ def clear_terminal():
 
 def banner():
     clear_terminal()
+
+    dragon = [
+        '       ....:ccc;.',
+        "      ......'''':Icd,",
+        "   ....''''........:Id;",
+        "....''''.................:Id;",
+        "       .';;;;;;;,,..a,",
+        "      .''''.        0xacc:..   ...",
+        "   ....             .GNUc;;;coKIdc',,",
+        "                      GNs          ':dds.",
+        "                     dHc              :80;",
+        "                     UN                ..e.",
+        "                    ;Vd                 ..e.",
+        "                    ;XS",
+        "                      .d08dic;,,..",
+        "                         .',;cd3id::,.",
+        "                              .;d;.';:;.",
+        "                                'd,    .'.",
+        "                                  ;3   ..",
+        "                                   ,e",
+        "                                    c",
+        "                                    .",
+        "                                    .",
+    ]
+
     console.print()
-    console.print("[bold blue]     ██╗  ██╗ █████╗ ██╗     ██╗[/bold blue]")
-    console.print("[bold blue]     ██║ ██╔╝██╔══██╗██║     ██║[/bold blue]")
-    console.print("[bold blue]     █████╔╝ ███████║██║     ██║[/bold blue]")
-    console.print("[bold blue]     ██╔═██╗ ██╔══██║██║     ██║[/bold blue]")
-    console.print("[bold blue]     ██║  ██╗██║  ██║███████╗██║[/bold blue]")
-    console.print("[bold blue]     ╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚═╝[/bold blue]")
+    console.print("[bold blue]                         G H O S T[/bold blue]")
+    console.print("[dim]                  SECURITY OPERATIONS[/dim]")
     console.print()
-    console.print("[bold white]        G H O S T   A I[/bold white]")
-    console.print("[dim]        Kali Linux Security Environment[/dim]")
+
+    for line in dragon:
+        console.print(line, style="bold blue")
+
     console.print()
-    console.print("[blue]┌──────────────────────────────────────────────────────┐[/blue]")
-    console.print("[blue]│[/blue] [white]GHOST AI[/white]         [green]● ONLINE[/green]                     [blue]│[/blue]")
-    console.print("[blue]│[/blue] [white]NetHunter[/white]        [green]● CONNECTED[/green]                 [blue]│[/blue]")
-    console.print("[blue]│[/blue] [white]Kali Linux[/white]      [green]● READY[/green]                    [blue]│[/blue]")
-    console.print("[blue]│[/blue] [white]Security Bridge[/white]  [green]● ACTIVE[/green]                   [blue]│[/blue]")
-    console.print("[blue]└──────────────────────────────────────────────────────┘[/blue]")
+    console.print("[bold blue]                    GHOST[/bold blue]")
+    console.print("[dim]             SECURITY ENVIRONMENT[/dim]")
     console.print()
-    console.print("[bold blue]ghost@kali[/bold blue]:[bold white]~[/bold white]$ [dim]Authorized defensive security environment[/dim]")
+    console.print("[dim]────────────────────────────────────────────────────────────────[/dim]")
     console.print()
+
+    console.print(
+        "[bold blue]┌──(ghost[/bold blue]"
+        "[bold red]㉿[/bold red]"
+        "[bold blue]kali)-[/bold blue]"
+        "[bold red][~][/bold red]"
+    )
+    console.print("[bold blue]└─$[/bold blue]", end=" ")
+
+
 def ensure_config_dir():
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
     try:

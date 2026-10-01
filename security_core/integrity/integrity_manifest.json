@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "algorithm": "SHA-256",
+  "files": {
+    "security_core/audit/audit_logger.py": "5efcab1dd9d70d840689f875f133169d5d88870536594b29603bd1fbd0dc4609",
+    "security_core/audit/chain_migration.py": "76b4e55033747042d9e6ba42b9863abb7f61b6e8bf1382d2c85749883b5fe419",
+    "security_core/inventory/authorization.py": "c654f310f06d610e4e55d92f6210e7380195216ab29bf65ecaa0488d020c9113",
+    "security_core/inventory/authorized_assets.json": "eb278250fa837acb69eca101be2fe33c7c027bc3c4914403b863278442aa2b9a",
+    "security_core/offensive/capability_lock_registry.py": "8e054b669a81363ef4ddd5f3af2c67e814a487184342236a2764952ba698f5f1",
+    "security_core/offensive/execution_controller.py": "f76d8512e9910737c77e9cfd232a89d9803c283e0ebb46c4efa175e2115c8194",
+    "security_core/offensive/producer_identity.json": "5fe5cc386e449fea2d7dea2518dac87fde57f006d40e115d56ea9dddc7e99ba2",
+    "security_core/offensive/producer_identity.py": "f1cb921de8f9d63ad9118a14bae2b1bf0e98f703fc5f1e10fea52b5f12f0391c",
+    "security_core/offensive/producer_public_key.pem": "4b73fdf299bd6da5091ca1659b80e03091375835e2abb2995483e0ec0d9c2065",
+    "security_core/offensive/producer_release.json": "a69253ecf44be1676f3efbc9e448b4539193c2146f20b87f71ee33e975d0d7ac",
+    "security_core/offensive/release_policy.py": "695283835bdd653c31a2ea13765fc37babf80e17fef37de1825204060d798e29",
+    "security_core/offensive/release_verifier.py": "9c640e331e7e14936426688a2480f2faeb4bc98c1be006d584b14b6f82c1f498"
+  }
+}

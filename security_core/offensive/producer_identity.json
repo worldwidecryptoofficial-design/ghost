@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "producer_id": "producer-001",
+  "public_key_id": "ghost-producer-key-001",
+  "role": "producer",
+  "status": "active"
+}

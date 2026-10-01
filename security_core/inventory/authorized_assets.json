@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "assets": [],
+  "policy": {
+    "default_action": "deny",
+    "require_explicit_authorization": true,
+    "allow_offensive_testing": true,
+    "allow_defensive_operations": true
+  }
+}

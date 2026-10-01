@@ -1,0 +1,13 @@
+{
+  "release_version": 1,
+  "producer_id": "producer-001",
+  "status": "LOCKED",
+  "enabled_capabilities": [],
+  "signed_payload": {
+    "release_version": 1,
+    "producer_id": "producer-001",
+    "status": "LOCKED",
+    "enabled_capabilities": []
+  },
+  "producer_signature": null
+}
